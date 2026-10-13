@@ -1,69 +1,210 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect } from 'react';
+import { mockCards } from '@/data/mockCards';
+import { TopicCard } from '@/types/catalog';
+import { useCatalogTerminal } from '@/hooks/useCatalogTerminal';
+import { TopMenuBar } from '@/components/TopMenuBar';
+import { System7Window } from '@/components/System7Window';
+import { LibraryCardView } from '@/components/LibraryCardView';
+import { LibrarianWidget } from '@/components/LibrarianWidget';
+import { BottomShortcutBar } from '@/components/BottomShortcutBar';
+import { IndexModal } from '@/components/IndexModal';
+import { SearchModal } from '@/components/SearchModal';
+import { BacklinksModal } from '@/components/BacklinksModal';
+import { AboutModal } from '@/components/AboutModal';
+import { HelpModal } from '@/components/HelpModal';
+import { AdminModal } from '@/components/AdminModal';
+import { ShuffleModal } from '@/components/ShuffleModal';
+import { MiniMapModal } from '@/components/MiniMapModal';
+import { useAdminClearance } from '@/hooks/useAdminClearance';
+
+export default function CatalogTerminalPage() {
+  const { isAuthenticated, login, logout } = useAdminClearance();
+  const [cards, setCards] = useState<TopicCard[]>(mockCards);
+  const [dataSource, setDataSource] = useState<string>('mock');
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadNotionCards() {
+      try {
+        const res = await fetch('/api/notion');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.cards) && data.cards.length > 0) {
+          setCards(data.cards);
+          setDataSource(data.source || 'notion');
+        }
+      } catch (err) {
+        console.error('Failed to load Notion cards:', err);
+      }
+    }
+
+    loadNotionCards();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const {
+    activeCard,
+    activeCardId,
+    activeThreadIndex,
+    activeThread,
+    totalThreads,
+    setActiveCardId,
+    nextThread,
+    prevThread,
+    nextTopic,
+    prevTopic,
+    shuffleRandomCard,
+    isShuffling,
+    isMapOpen,
+    toggleMap,
+    currentBacklinks,
+    isIndexOpen,
+    isSearchOpen,
+    isBacklinksOpen,
+    isAboutOpen,
+    isHelpOpen,
+    isAdminOpen,
+    toggleIndex,
+    toggleSearch,
+    toggleBacklinks,
+    toggleAbout,
+    toggleHelp,
+    toggleAdmin,
+    closeAllModals,
+  } = useCatalogTerminal(cards);
+
+  const isAnyModalOpen =
+    isIndexOpen ||
+    isSearchOpen ||
+    isBacklinksOpen ||
+    isAboutOpen ||
+    isHelpOpen ||
+    isAdminOpen ||
+    isMapOpen ||
+    isShuffling;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="relative w-screen h-screen flex flex-col justify-between overflow-hidden">
+      {/* 1. Top Bar: System 7 데스크톱 메뉴 바 */}
+      <TopMenuBar
+        onOpenAbout={toggleAbout}
+        onOpenIndex={toggleIndex}
+        onOpenSearch={toggleSearch}
+        onOpenHelp={toggleHelp}
+        onOpenAdmin={toggleAdmin}
+        onOpenMap={toggleMap}
+        isAboutOpen={isAboutOpen}
+        isIndexOpen={isIndexOpen}
+        isSearchOpen={isSearchOpen}
+        isHelpOpen={isHelpOpen}
+        isAdminOpen={isAdminOpen}
+        isMapOpen={isMapOpen}
+        isAdminAuthenticated={isAuthenticated}
+      />
+
+      {/* 2. Center View: 화면 중앙에 단 1장의 단상 카드만 단정하게 렌더링 */}
+      <main className="flex-1 w-full flex items-center justify-center p-4 sm:p-6 pb-12 overflow-y-auto">
+        <div className="w-full max-w-2xl my-auto animate-in fade-in zoom-in-95 duration-150">
+          <System7Window
+            title={`[장서카드] ${activeCard.callNumber} • ${activeCard.topic}`}
+            width="w-full"
+            className="shadow-[6px_6px_0px_rgba(0,0,0,0.85)] border-2 border-black"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="p-1 sm:p-2 bg-[#e6e9ed] flex justify-center">
+              <LibraryCardView
+                card={activeCard}
+                activeThread={activeThread}
+                activeThreadIndex={activeThreadIndex}
+                totalThreads={totalThreads}
+                onPrevThread={prevThread}
+                onNextThread={nextThread}
+                onSelectTopic={setActiveCardId}
+                onOpenBacklinks={toggleBacklinks}
+                backlinkCount={currentBacklinks.length}
+                allCards={cards}
+                isAuthenticated={isAuthenticated}
+              />
+            </div>
+          </System7Window>
         </div>
       </main>
+
+      {/* 3. Bottom Right Widget: 사서 도트 이미지 위젯 */}
+      <LibrarianWidget currentTopic={`[${activeCard.callNumber}] ${activeCard.topic}`} />
+
+      {/* 4. Bottom Bar: 확정된 조작 단축키 안내 바 */}
+      <BottomShortcutBar
+        onPrevThread={prevThread}
+        onNextThread={nextThread}
+        onPrevTopic={prevTopic}
+        onNextTopic={nextTopic}
+        onRandom={shuffleRandomCard}
+        onToggleSearch={toggleSearch}
+        onToggleBacklinks={toggleBacklinks}
+        onToggleMap={toggleMap}
+        onEscape={() => {
+          const key = new KeyboardEvent('keydown', { key: 'Escape' });
+          window.dispatchEvent(key);
+        }}
+        isModalOpen={isAnyModalOpen}
+      />
+
+      {/* 5. Sub Windows & Modals */}
+      {isShuffling && <ShuffleModal isOpen={isShuffling} />}
+
+      {isIndexOpen && (
+        <IndexModal
+          cards={cards}
+          activeCardId={activeCardId}
+          onSelectCard={setActiveCardId}
+          onClose={closeAllModals}
+        />
+      )}
+
+      {isSearchOpen && (
+        <SearchModal
+          cards={cards}
+          onSelectCard={setActiveCardId}
+          onClose={closeAllModals}
+        />
+      )}
+
+      {isBacklinksOpen && (
+        <BacklinksModal
+          currentTopic={`[${activeCard.callNumber}] ${activeCard.topic}`}
+          backlinks={currentBacklinks}
+          onSelectCard={setActiveCardId}
+          onClose={closeAllModals}
+        />
+      )}
+
+      {isMapOpen && (
+        <MiniMapModal
+          isOpen={isMapOpen}
+          currentCard={activeCard}
+          allCards={cards}
+          onSelectCard={setActiveCardId}
+          onClose={closeAllModals}
+        />
+      )}
+
+      {isAboutOpen && <AboutModal onClose={closeAllModals} />}
+
+      {isHelpOpen && <HelpModal onClose={closeAllModals} />}
+
+      {isAdminOpen && (
+        <AdminModal
+          isOpen={isAdminOpen}
+          onClose={closeAllModals}
+          isAuthenticated={isAuthenticated}
+          onLogin={login}
+          onLogout={logout}
+        />
+      )}
     </div>
   );
 }

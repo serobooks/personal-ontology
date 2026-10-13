@@ -1,26 +1,161 @@
+@import url('https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sys7-bg-white: #ffffff;
+  --sys7-bg-gray: #e6e6e6;
+  --sys7-dark-gray: #777777;
+  --sys7-black: #000000;
+  /* 누런 미색 제거 -> System 7 일체감 있는 아주 옅은 쿨그레이 */
+  --card-bg: #f5f7fa;
+  --card-line: #e2e8f0;
+  --card-border: #000000;
+  --card-red-line: #dc2626;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* 기본 글꼴을 비트맵 레트로 폰트(Galmuri9)로 지정 */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Galmuri9', 'Galmuri11', 'Courier New', Courier, monospace, sans-serif;
+  color: #000000;
+  background-color: #777777;
+  /* System 7 저대비 체커보드 디더링 배경 (모아레 및 눈 피로 완화) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23888888'/%3E%3Crect x='1' width='1' height='1' fill='%23666666'/%3E%3Crect y='1' width='1' height='1' fill='%23666666'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23888888'/%3E%3C/svg%3E");
+  background-size: 2px 2px;
+  image-rendering: pixelated;
+  user-select: none;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
 }
+
+/* System 7 핀스트라이프(가로 줄무늬) 타이틀 바 패턴 */
+.pinstripe-bar {
+  background: repeating-linear-gradient(
+    to bottom,
+    #000000 0px,
+    #000000 1px,
+    #ffffff 1px,
+    #ffffff 2px
+  );
+}
+
+/* System 7 클래식 윈도우 그림자 및 베벨 */
+.sys7-window {
+  border: 1px solid #000000;
+  box-shadow: 2px 2px 0px #000000;
+}
+
+.sys7-window-heavy {
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.9);
+}
+
+/* System 7 볼록 버튼 */
+.sys7-btn {
+  border: 1px solid #000000;
+  background-color: #ffffff;
+  box-shadow: 1px 1px 0px #ffffff inset, -1px -1px 0px #888888 inset, 1px 1px 0px #000000;
+}
+
+.sys7-btn:active, .sys7-btn-active {
+  background-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+/* System 7 클로즈 박스 (정사각형 사각 버튼) */
+.sys7-close-box {
+  width: 13px;
+  height: 13px;
+  border: 1px solid #000000;
+  background: #ffffff;
+  box-shadow: 1px 1px 0px #ffffff inset, -1px -1px 0px #aaaaaa inset;
+}
+
+.sys7-close-box:active {
+  background: #000000;
+}
+
+/* 도서관 장서 대출 카드 쿨그레이 질감 및 단정 테두리 */
+.library-card-sheet {
+  background-color: var(--card-bg);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    var(--card-line) 32px
+  );
+  line-height: 32px;
+}
+
+/* 고무인 날짜 도장(Ink Stamp) 효과 */
+.ink-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 11px;
+  line-height: 14px;
+  mix-blend-mode: multiply;
+}
+
+.stamp-quotation, .stamp-quote {
+  color: #2d5a27;
+  border-color: #2d5a27;
+  border-style: dashed;
+  border-width: 2px;
+  transform: rotate(-1.5deg);
+}
+
+.stamp-unfinished {
+  color: #1e3a8a;
+  border-color: #1e3a8a;
+  border-style: solid;
+  border-width: 1.5px;
+  transform: rotate(2deg);
+}
+
+.stamp-established, .stamp-canon {
+  color: #831843;
+  border-color: #831843;
+  border-style: double;
+  border-width: 3.5px;
+  transform: rotate(-2deg);
+}
+
+.stamp-specimen {
+  color: #92400e;
+  border-color: #92400e;
+  border-style: solid;
+  border-width: 1.5px;
+  transform: rotate(1.5deg);
+}
+
+.stamp-restricted {
+  color: #4c1d95;
+  border-color: #4c1d95;
+  border-style: solid;
+  border-width: 2.5px;
+  border-radius: 2px 4px 3px 5px / 4px 2px 5px 3px;
+  filter: url(#distressed-rubber);
+  box-shadow: inset 0 0 1px rgba(76, 29, 149, 0.4), 0 0 1px rgba(76, 29, 149, 0.2);
+  transform: rotate(-2.5deg);
+}
+
+/* System 7 빗금 해치 패턴 */
+.sys7-hatch-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 1px,
+    #ffffff 1px,
+    #ffffff 4px
+  );
+}
+
