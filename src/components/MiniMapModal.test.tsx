@@ -52,4 +52,19 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     closeBtn.click();
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('B- 서지 카드가 존재할 때 다이아몬드(polygon) 도트가 렌더링되고 하단 상태바는 단정하게 유지되어야 한다', () => {
+    const { container } = render(<MiniMapModal {...defaultProps} />);
+
+    // B- 서지 카드용 마커(polygon)가 렌더링되었는지 확인
+    const bookMarkers = container.querySelectorAll('[data-testid="book-marker"]');
+    expect(bookMarkers.length).toBeGreaterThan(0);
+
+    // 하단 설명이 두 줄이 되지 않도록 범례 텍스트는 표시되지 않아야 함
+    expect(screen.queryByText(/□ 사유 · ◇ 서지/)).toBeNull();
+
+    // 연계 카드 참조 점선(reference-link)이 존재하는지 확인
+    const refLinks = container.querySelectorAll('[data-testid="reference-link"]');
+    expect(refLinks.length).toBeGreaterThan(0);
+  });
 });

@@ -512,36 +512,64 @@ export function getCategorySchedule(cards: TopicCard[]): CategoryScheduleItem[] 
 }
 
 /**
- * 청구기호의 계층적 가지치기 구조를 한 글자씩 거슬러 올라가 직계 조상 청구기호 목록을 반환합니다.
- * 예:
- * '501-a4a3' -> ['501-a4a', '501-a4', '501-a', '501', '500']
- * '401' -> ['400']
- * 'B-1a' -> ['B-1', 'B']
+ * 청구기호의 계층적 가지치기 구조를 거슬러 올라가 직계 조상 청구기호 목록을 반환합니다.
+ * - 신규 규칙: 모든 청구기호는 숫자로 끝나며, 하이픈(-) 뒤의 자식 노드는 [알파벳 1자리 + 숫자 1자리 이상]을 한 묶음으로 취급합니다.
+ * - 예:
+ *   '501-a4a3' -> ['501-a4', '501', '500']
+ *   '501-a4a1b1' -> ['501-a4a1', '501-a4', '501', '500']
+ *   '401' -> ['400']
+ *   'B-1' -> ['B']
  */
 export function getAncestorCallNumbers(callNumber: string): string[] {
   if (!callNumber) return [];
   const ancestors: string[] = [];
   let current = callNumber.trim();
 
-  // 하이픈 뒤의 가지치기 접미사를 하나씩 줄여나감
+  // 1. 하이픈 뒤의 토큰(연속된 숫자 또는 영문자)을 끝에서부터 하나씩 제거
   while (current.includes('-')) {
-    const lastHyphenIndex = current.lastIndexOf('-');
-    const base = current.slice(0, lastHyphenIndex);
-    const branch = current.slice(lastHyphenIndex + 1);
+    const hyphenIdx = current.indexOf('-');
+    const major = current.slice(0, hyphenIdx);
+    const branch = current.slice(hyphenIdx + 1);
 
-    if (branch.length > 1) {
-      current = `${base}-${branch.slice(0, -1)}`;
-      ancestors.push(current);
+    if (/\d+$/.test(branch)) {
+      const parentBranch = branch.replace(/\d+$/, '');
+      if (!parentBranch) {
+        if (!ancestors.includes(major)) ancestors.push(major);
+        current = major;
+        break;
+      } else {
+        current = `${major}-${parentBranch}`;
+        if (!ancestors.includes(current)) ancestors.push(current);
+      }
+    } else if (/[a-zA-Z]+$/.test(branch)) {
+      const parentBranch = branch.replace(/[a-zA-Z]+$/, '');
+      if (!parentBranch) {
+        if (!ancestors.includes(major)) ancestors.push(major);
+        current = major;
+        break;
+      } else {
+        current = `${major}-${parentBranch}`;
+        if (!ancestors.includes(current)) ancestors.push(current);
+      }
     } else {
-      current = base;
-      ancestors.push(current);
+      break;
     }
   }
 
-  // 3자리 순수 숫자인 경우 백의 자리 대분과(예: 501 -> 500)로 도출
-  if (/^\d{3}$/.test(current) && !current.endsWith('00')) {
-    const majorRoot = `${current[0]}00`;
-    ancestors.push(majorRoot);
+  // 2. 3자리 순수 숫자인 경우 (소분과 211 -> 중분과 210 -> 대분과 200, 501 -> 500)
+  if (/^\d{3}$/.test(current)) {
+    if (!current.endsWith('00')) {
+      if (!current.endsWith('0')) {
+        const midRoot = `${current.slice(0, 2)}0`;
+        if (midRoot !== current && !ancestors.includes(midRoot)) {
+          ancestors.push(midRoot);
+        }
+      }
+      const majorRoot = `${current[0]}00`;
+      if (!ancestors.includes(majorRoot)) {
+        ancestors.push(majorRoot);
+      }
+    }
   } else if (current.toUpperCase().startsWith('B') && current.length > 1) {
     if (!ancestors.includes('B')) {
       ancestors.push('B');

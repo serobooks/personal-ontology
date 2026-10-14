@@ -400,21 +400,36 @@ describe('도서관 장서 온톨로지 카탈로그 유틸리티 및 검색 검
     expect(cat700?.firstCardId).toBe('c4');
   });
 
-  it('getAncestorCallNumbers: 청구기호의 계층 접미사를 한 글자씩 거슬러 올라가 직계 조상 목록을 산출해야 한다', () => {
-    // 501-a4a3 -> 501-a4a -> 501-a4 -> 501-a -> 501 -> 500
-    expect(getAncestorCallNumbers('501-a4a3')).toEqual([
-      '501-a4a',
-      '501-a4',
-      '501-a',
+  it('getAncestorCallNumbers: 루만식 교대 청구기호 체계(숫자 ➔ 영문 ➔ 숫자 ➔ 영문) 단위로 직계 조상 목록을 산출해야 한다', () => {
+    // 5단계 직렬 체인: 501-4a1a1 -> 501-4a1a -> 501-4a1 -> 501-4a -> 501-4 -> 501 -> 500
+    expect(getAncestorCallNumbers('501-4a1a1')).toEqual([
+      '501-4a1a',
+      '501-4a1',
+      '501-4a',
+      '501-4',
       '501',
       '500',
+    ]);
+
+    // 501-1a -> 501-1 -> 501 -> 500
+    expect(getAncestorCallNumbers('501-1a')).toEqual([
+      '501-1',
+      '501',
+      '500',
+    ]);
+
+    // 211-1 -> 211 -> 210 -> 200
+    expect(getAncestorCallNumbers('211-1')).toEqual([
+      '211',
+      '210',
+      '200',
     ]);
 
     // 401 -> 400
     expect(getAncestorCallNumbers('401')).toEqual(['400']);
 
-    // B-1a -> B-1 -> B
-    expect(getAncestorCallNumbers('B-1a')).toEqual(['B-1', 'B']);
+    // B-1 -> B
+    expect(getAncestorCallNumbers('B-1')).toEqual(['B']);
   });
 
   it('resolveInheritedCategory: 분류가 비어있으면 가장 가까운 상위 조상의 분류를 상속하고, 없으면 대분과명을 반환해야 한다', () => {
