@@ -297,7 +297,7 @@ describe('notionAdapter - 노션 데이터베이스 레코드를 TopicCard로 �
     expect(bookCard.threads[0].note).toBe('제임스 멀둔, 2026\n디지털 플랫폼 노동과 자동화의 역설을 짚은 역작.');
   });
 
-  it('extractTextFromNotionBlocks는 다양한 블록 타입으로부터 줄바꿈 텍스트를 추출해야 한다', async () => {
+  it('extractTextFromNotionBlocks는 다양한 블록 타입으로부터 줄바꿈, 불릿 및 번호 매기기 텍스트를 추출해야 한다', async () => {
     const { extractTextFromNotionBlocks } = await import('./notionAdapter');
     const sampleBlocks = [
       {
@@ -318,10 +318,55 @@ describe('notionAdapter - 노션 데이터베이스 레코드를 TopicCard로 �
           rich_text: [{ plain_text: '플랫폼 노동의 구조적 분석' }],
         },
       },
+      {
+        type: 'numbered_list_item',
+        numbered_list_item: {
+          rich_text: [{ plain_text: '첫 번째 항목' }],
+        },
+      },
+      {
+        type: 'numbered_list_item',
+        numbered_list_item: {
+          rich_text: [{ plain_text: '두 번째 항목' }],
+        },
+      },
     ];
 
     const text = extractTextFromNotionBlocks(sampleBlocks);
-    expect(text).toBe('제임스 멀둔, 2026\n기술은 중립적이지 않다.\n플랫폼 노동의 구조적 분석');
+    expect(text).toBe(
+      '제임스 멀둔, 2026\n기술은 중립적이지 않다.\n• 플랫폼 노동의 구조적 분석\n1. 첫 번째 항목\n2. 두 번째 항목'
+    );
+  });
+
+  it('일반 단상 카드는 page_content가 있을 때 메모 제목 바로 다음 줄에 본문이 이어서 결합되어야 한다', () => {
+    const rawPages = [
+      {
+        id: 'memo-cat-powers',
+        created_time: '2026-10-15T01:20:00.000Z',
+        page_content: '• 복권 번호 맞추기, 주식 종목 추천 (X)\n• 다른 고양이의 생각, 아픈 곳',
+        properties: {
+          '메모': {
+            type: 'title',
+            title: [{ plain_text: '고양이의 영혼과 교감하면 할 수 있는 일' }],
+          },
+          '청구기호': {
+            type: 'rich_text',
+            rich_text: [{ plain_text: '211-2' }],
+          },
+        },
+      },
+    ];
+
+    const cards = transformNotionPagesToCards(rawPages as any);
+    expect(cards).toHaveLength(1);
+    const card = cards[0];
+
+    // 제목은 상속된 분류 또는 대분과 유지
+    expect(card.callNumber).toBe('211-2');
+    // 네모난 단상 칸(note)에는 메모 제목 바로 다음 줄에 본문(불릿)이 결합되어야 함!
+    expect(card.threads[0].note).toBe(
+      '고양이의 영혼과 교감하면 할 수 있는 일\n• 복권 번호 맞추기, 주식 종목 추천 (X)\n• 다른 고양이의 생각, 아픈 곳'
+    );
   });
 });
 

@@ -13,14 +13,27 @@ export interface NotionRawPage {
  */
 export function extractTextFromNotionBlocks(blocks: any[]): string {
   if (!Array.isArray(blocks)) return '';
+  let numberedCounter = 0;
   return blocks
     .map((block) => {
       const type = block?.type;
       if (!type) return '';
       const textArray = block[type]?.rich_text;
       if (Array.isArray(textArray)) {
-        return textArray.map((t: any) => t?.plain_text || '').join('');
+        const text = textArray.map((t: any) => t?.plain_text || '').join('');
+        if (!text) return '';
+        if (type === 'bulleted_list_item') {
+          numberedCounter = 0;
+          return `• ${text}`;
+        }
+        if (type === 'numbered_list_item') {
+          numberedCounter += 1;
+          return `${numberedCounter}. ${text}`;
+        }
+        numberedCounter = 0;
+        return text;
       }
+      numberedCounter = 0;
       return '';
     })
     .filter((line) => line.length > 0)
@@ -125,9 +138,18 @@ export function transformNotionPagesToCards(pages: NotionRawPage[]): TopicCard[]
     }
 
     const pageContent = page.page_content?.trim();
-    const noteText = isBook
-      ? (pageContent || memoTitle)
-      : memoTitle;
+    let noteText = memoTitle;
+    if (isBook) {
+      // 서지 카드는 페이지 본문(저자, 연도, 감상 등)이 있으면 그대로 우선 반영
+      noteText = pageContent || memoTitle;
+    } else {
+      // 일반 단상 메모는 '메모'에 있는 내용을 출력한 다음, 페이지 본문 추가 내용이 있으면 바로 다음 줄에 이어서 결합
+      if (memoTitle && pageContent) {
+        noteText = `${memoTitle}\n${pageContent}`;
+      } else {
+        noteText = pageContent || memoTitle;
+      }
+    }
 
     const thread: CardThread = {
       id: `thread-${page.id}`,
