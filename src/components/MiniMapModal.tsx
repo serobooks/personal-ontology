@@ -13,9 +13,11 @@ interface MiniMapModalProps {
 
 /**
  * 서고 전체도 (Overview) 모달 팝업
- * - DB의 모든 메모를 조그마한 1비트 사각 도트(사유) 및 다이아몬드(서지)로 시각화
- * - 현재 노드를 기준으로 정중앙에 위치하고, 마우스를 살살 움직이면 즉각 패닝되는 시선 추적 조망 시스템
- * - 은은한 회색 점선으로 사유와 서지 간의 연계 그물망 표현
+ * - 대주제별 성운(Nebulae)이 교집합이나 인위적 경계 없이 광활한 성도 위에 자유롭게 분산
+ * - 사유 노트는 부모-자식 별자리 실선으로, 연계 및 서지 카드는 점선으로 연결
+ * - 서지 카드는 태양계 외곽의 성간 공간에 불규칙적으로 흩뿌려짐
+ * - 스크롤바 없이 마우스 상하좌우 이동에 따라 시선이 부드럽게 창 안의 조망 범위를 확장하는 뷰포트 패닝
+ * - 깜빡임이나 장식적 애니메이션이 일절 배제된 순수 1비트 정적 미학
  */
 export const MiniMapModal: React.FC<MiniMapModalProps> = ({
   isOpen,
@@ -27,7 +29,7 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
 
   const mapData = getLibraryOverviewMapData(currentCard, allCards);
 
-  // 모달 오픈 시 현재 노드가 캔버스 정중앙에 오도록 자동 스크롤
+  // 모달 오픈 시 현재 노드가 뷰포트 정중앙에 오도록 초기 스크롤 설정
   useEffect(() => {
     if (!isOpen) return;
     const container = containerRef.current;
@@ -41,7 +43,7 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
     }
   }, [isOpen, mapData]);
 
-  // 마우스 커서 위치에 따른 즉각적인 시선 추적 조망 (Dynamic Mouse Panning)
+  // 마우스 상하좌우 이동에 따른 부드러운 뷰포트 카메라 패닝 (스크롤바를 대체하는 시선 추적 조망)
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const container = containerRef.current;
     if (!container) return;
@@ -76,12 +78,12 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
           className="shadow-[5px_5px_0px_#000] border-2 border-black"
         >
           <div className="space-y-2 text-xs">
-            {/* 가로로 확장된 시원한 전체도 뷰어 영역 (마우스 시선 추적 조망 지원) */}
+            {/* 시원스럽게 펼쳐진 광역 성도 뷰포트 (스크롤바 없이 마우스 이동으로 조망) */}
             <div
               ref={containerRef}
               data-testid="overview-map"
               onMouseMove={handleMouseMove}
-              className="relative w-full h-[300px] border-2 border-black bg-white overflow-auto shadow-[inset_1px_1px_0px_#888] cursor-crosshair"
+              className="relative w-full h-[320px] border-2 border-black bg-white overflow-hidden shadow-[inset_1px_1px_0px_#888] cursor-crosshair [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
               style={{
                 backgroundImage:
                   'radial-gradient(circle, #000 0.5px, transparent 0.5px), radial-gradient(circle, #000 0.5px, #fff 0.5px)',
@@ -98,7 +100,22 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                 xmlns="http://www.w3.org/2000/svg"
                 style={{ shapeRendering: 'crispEdges' }}
               >
-                {/* 1. 사유 및 서지 연계카드 연결선 (은은한 회색 점선) */}
+                {/* 1. 대주제 성운 위치 라벨 (원형 경계선 없이 단정한 비트맵 텍스트만 표시) */}
+                {mapData.clusters.map((cluster) => (
+                  <text
+                    key={`nebula-${cluster.majorCode}`}
+                    x={cluster.cx}
+                    y={cluster.cy - 14}
+                    fill="#aaa"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    textAnchor="middle"
+                  >
+                    [{cluster.majorCode}]
+                  </text>
+                ))}
+
+                {/* 2. 성간 및 연계 카드 참조선 (단정한 1비트 회색 점선) */}
                 {mapData.references?.map((ref, idx) => (
                   <line
                     key={`ref-${idx}`}
@@ -113,10 +130,11 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                   />
                 ))}
 
-                {/* 2. 직속 부모-자식 나뭇가지 연결선 (단정한 검은 실선) */}
+                {/* 3. 직속 부모-자식 별자리 터널 (단정한 1비트 검은 실선) */}
                 {mapData.tunnels.map((tunnel, idx) => (
                   <line
                     key={`tunnel-${idx}`}
+                    data-testid="tunnel-link"
                     x1={tunnel.x1}
                     y1={tunnel.y1}
                     x2={tunnel.x2}
@@ -126,7 +144,7 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                   />
                 ))}
 
-                {/* 3. 모든 메모의 사각(사유) 및 다이아몬드(서지) 도트들 */}
+                {/* 4. 모든 메모의 사각(사유) 및 다이아몬드(서지) 도트들 */}
                 {mapData.nodes.map((node) => {
                   if (node.isBook) {
                     // B- 서지 카드: 다이아몬드(마름모) 도트
@@ -188,7 +206,7 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                     );
                   }
 
-                  // 일반 메모: 아주 작은 빈 사각 도트 (4x4)
+                  // 일반 사유 메모: 아주 작은 빈 사각 도트 (4x4)
                   return (
                     <rect
                       key={node.id}

@@ -67,4 +67,21 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     const refLinks = container.querySelectorAll('[data-testid="reference-link"]');
     expect(refLinks.length).toBeGreaterThan(0);
   });
+
+  it('교집합을 오인시키는 원형 경계선(circle) 및 인위적인 애니메이션이 완전히 배제되어야 한다', () => {
+    const { container } = render(<MiniMapModal {...defaultProps} />);
+
+    // 1. 벤 다이어그램 교집합 오해를 낳는 circle 태그가 전혀 없어야 함
+    expect(container.querySelectorAll('circle').length).toBe(0);
+
+    // 2. 깜빡임, 펄스, 회전 등의 애니메이션 클래스가 없어야 함
+    expect(container.querySelector('.animate-spin')).toBeNull();
+    expect(container.querySelector('.animate-pulse')).toBeNull();
+    expect(container.querySelector('.beacon-marker')).toBeNull();
+
+    // 3. 직속 부모-자식 실선 터널(tunnel-link)이 렌더링되어야 함
+    const tunnelLinks = container.querySelectorAll('[data-testid="tunnel-link"]');
+    expect(tunnelLinks.length).toBeGreaterThan(0);
+  });
 });
+
