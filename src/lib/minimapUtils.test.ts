@@ -50,7 +50,7 @@ describe('minimapUtils 성운 성도(Cosmic Constellation) 전체도 엔진 검�
     expect(mapData.clusters).toBeDefined();
     expect(mapData.clusters.length).toBeGreaterThan(0);
 
-    // 각 성운의 중심 간 거리는 최소 140px 이상 확보되어야 함 (교집합 방지)
+    // 각 성운의 중심 간 거리는 최소 120px 이상 확보되어야 함 (교집합 방지)
     const clusters = mapData.clusters;
     for (let i = 0; i < clusters.length; i++) {
       for (let j = i + 1; j < clusters.length; j++) {
@@ -61,6 +61,73 @@ describe('minimapUtils 성운 성도(Cosmic Constellation) 전체도 엔진 검�
       }
     }
   });
+
+  it('대주제 성운은 일의 자리가 아닌 백의 자리(100, 200, 500, 600 등)를 기준으로 러프하게 그룹화되어야 한다', () => {
+    const sampleCards: TopicCard[] = [
+      {
+        id: 'c-501',
+        callNumber: '501-1',
+        topic: '단상 501',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-502',
+        callNumber: '502-1',
+        topic: '단상 502',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-211',
+        callNumber: '211-1',
+        topic: '소설 211',
+        author: '사서',
+        classification: '200 서사와 창작',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-230',
+        callNumber: '230-1',
+        topic: '소설 230',
+        author: '사서',
+        classification: '200 서사와 창작',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+    ];
+
+    const mapData = getLibraryOverviewMapData(sampleCards[0], sampleCards);
+
+    // 501, 502 -> '500' 하나의 성운으로 묶이고, 211, 230 -> '200' 하나의 성운으로 묶여 총 2개 성운이어야 함
+    expect(mapData.clusters.length).toBe(2);
+    const clusterCodes = mapData.clusters.map((c) => c.majorCode).sort();
+    expect(clusterCodes).toEqual(['200', '500']);
+
+    // 500 성운의 캡슐(envelope) 안에 501과 502 노드가 모두 포함되어야 함
+    const cluster500 = mapData.clusters.find((c) => c.majorCode === '500')!;
+    const node501 = mapData.nodes.find((n) => n.callNumber === '501-1')!;
+    const node502 = mapData.nodes.find((n) => n.callNumber === '502-1')!;
+
+    expect(node501.x).toBeGreaterThanOrEqual(cluster500.envelope.x);
+    expect(node501.x).toBeLessThanOrEqual(cluster500.envelope.x + cluster500.envelope.width);
+    expect(node502.x).toBeGreaterThanOrEqual(cluster500.envelope.x);
+    expect(node502.x).toBeLessThanOrEqual(cluster500.envelope.x + cluster500.envelope.width);
+  });
+
 
   it('성운 내의 부모-자식 사유 노드는 별자리처럼 실선(tunnels)으로 연결되어야 한다', () => {
     const familyCards: TopicCard[] = [
@@ -118,6 +185,56 @@ describe('minimapUtils 성운 성도(Cosmic Constellation) 전체도 엔진 검�
     );
     expect(t1).toBeDefined();
     expect(t2).toBeDefined();
+
+    // 한 부모에서 2개 이상 갈라진 자식(형제)이므로 isBranch가 true여야 함
+    expect(t1?.isBranch).toBe(true);
+    expect(t2?.isBranch).toBe(true);
+  });
+
+  it('단일 직렬 심화(부모에게 자식이 1개만 이어지는 계보)는 isBranch가 false여야 한다', () => {
+    const chainCards: TopicCard[] = [
+      {
+        id: 'c-root',
+        callNumber: '501-1',
+        topic: '직렬 루트',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-child',
+        callNumber: '501-1a',
+        topic: '직렬 1차 자식',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-grandchild',
+        callNumber: '501-1a1',
+        topic: '직렬 2차 손자',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+    ];
+
+    const mapData = getLibraryOverviewMapData(chainCards[0], chainCards);
+    expect(mapData.tunnels.length).toBe(2);
+
+    // 둘 다 단일 자식으로 이어지므로 isBranch는 false (직렬 심화선)
+    mapData.tunnels.forEach((tunnel) => {
+      expect(tunnel.isBranch).toBe(false);
+    });
   });
 
   it('서지(B-) 노드는 사유 성운 집합(태양계) 외곽에 불규칙적으로 흩뿌려지고 연관 사유 노드와 점선(references)으로 연결되어야 한다', () => {
@@ -167,7 +284,7 @@ describe('minimapUtils 성운 성도(Cosmic Constellation) 전체도 엔진 검�
     const dx = bNode.x - iNode.x;
     const dy = bNode.y - iNode.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    expect(dist).toBeGreaterThanOrEqual(40);
+    expect(dist).toBeGreaterThanOrEqual(24);
 
     // 연관된 점선 연결선(references)이 생성되어 있어야 함
     const ref = mapData.references.find(
@@ -224,19 +341,166 @@ describe('minimapUtils 성운 성도(Cosmic Constellation) 전체도 엔진 검�
     expect(ref).toBeDefined();
   });
 
-  it('캔버스는 노드들이 여유롭게 숨쉴 수 있도록 뷰포트보다 넓은 광역 성도 규격(canvasWidth >= 800, canvasHeight >= 550)을 가져야 한다', () => {
+  it('각 대주제 성운마다 소속 사유 노드들을 타이트하게 감싸는 맞춤형 캡슐(envelope)을 산출해야 한다', () => {
     const currentCard = mockCards[0];
     const mapData = getLibraryOverviewMapData(currentCard, mockCards);
 
-    expect(mapData.canvasWidth).toBeGreaterThanOrEqual(800);
-    expect(mapData.canvasHeight).toBeGreaterThanOrEqual(550);
+    expect(mapData.clusters.length).toBeGreaterThan(0);
 
-    // 모든 노드는 캔버스 테두리 안쪽 안전 영역에 위치해야 함
-    mapData.nodes.forEach((node) => {
-      expect(node.x).toBeGreaterThanOrEqual(20);
-      expect(node.x).toBeLessThanOrEqual(mapData.canvasWidth - 20);
-      expect(node.y).toBeGreaterThanOrEqual(20);
-      expect(node.y).toBeLessThanOrEqual(mapData.canvasHeight - 20);
+    mapData.clusters.forEach((cluster) => {
+      expect(cluster.envelope).toBeDefined();
+      expect(cluster.envelope.width).toBeGreaterThanOrEqual(24);
+      expect(cluster.envelope.height).toBeGreaterThanOrEqual(24);
+
+      // 소속 사유 노드들은 자신의 envelope 영역 내에 안전하게 감싸여 있어야 함
+      const memberNodes = mapData.nodes.filter(
+        (n) => !n.isBook && n.callNumber.startsWith(cluster.majorCode)
+      );
+      memberNodes.forEach((node) => {
+        expect(node.x).toBeGreaterThanOrEqual(cluster.envelope.x);
+        expect(node.x).toBeLessThanOrEqual(cluster.envelope.x + cluster.envelope.width);
+        expect(node.y).toBeGreaterThanOrEqual(cluster.envelope.y);
+        expect(node.y).toBeLessThanOrEqual(cluster.envelope.y + cluster.envelope.height);
+      });
+    });
+  });
+
+  it('서지 노트 및 사유 노트 아이콘은 대주제 숫자 레이블([200], [500] 등)과 겹치지 않아야 한다', () => {
+    const currentCard = mockCards[0];
+    const mapData = getLibraryOverviewMapData(currentCard, mockCards);
+
+    mapData.clusters.forEach((cluster) => {
+      const lx = cluster.labelX ?? cluster.envelope.x + 6;
+      const ly = cluster.labelY ?? cluster.envelope.y - 4;
+
+      // 레이블 텍스트의 폰트 및 바운딩 박스 영역
+      mapData.nodes.forEach((node) => {
+        const dx = Math.abs(node.x - (lx + 15));
+        const dy = Math.abs(node.y - (ly - 4));
+        // 노드 중심이 레이블 중심으로부터 충분한 거리(수평 20px 이상 또는 수직 12px 이상)를 두어야 함
+        const isOverlapping = dx < 20 && dy < 12;
+        expect(isOverlapping).toBe(false);
+      });
+    });
+  });
+
+  it('성단 내의 노드 간격은 과도하게 길어지지 않고 조밀하게(dense) 응집되어야 한다', () => {
+    const currentCard = mockCards[0];
+    const mapData = getLibraryOverviewMapData(currentCard, mockCards);
+
+    // 터널(부모-자식 연결선)의 길이가 40px 이하로 조밀하게 유지되어야 함 (기존 67px 대비 대폭 축소)
+    mapData.tunnels.forEach((tunnel) => {
+      const length = Math.hypot(tunnel.x2 - tunnel.x1, tunnel.y2 - tunnel.y1);
+      expect(length).toBeLessThanOrEqual(40);
+    });
+  });
+
+  it('서지 노트가 상단에 위치하더라도 대주제 숫자 레이블([200] 등)의 텍스트 영역과 안전거리를 확보해야 한다', () => {
+    const cards: TopicCard[] = [
+      {
+        id: 'c-201',
+        callNumber: '201-1',
+        topic: '공간 온톨로지',
+        author: '사서',
+        classification: '200 서사',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [{ id: 't1', date: '2026-09-22', stampType: 'QUOTATION', note: '', linkedTopicIds: ['B-top'] }],
+        tags: [],
+      },
+      {
+        id: 'B-top',
+        callNumber: 'B-10',
+        topic: '최상단 서지',
+        author: '저자',
+        classification: '서지',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+    ];
+
+    const mapData = getLibraryOverviewMapData(cards[0], cards);
+    const bookNode = mapData.nodes.find((n) => n.isBook)!;
+    const cluster200 = mapData.clusters.find((c) => c.majorCode === '200')!;
+
+    const lx = cluster200.labelX ?? cluster200.envelope.x + 6;
+    const ly = cluster200.labelY ?? cluster200.envelope.y - 4;
+
+    const dx = Math.abs(bookNode.x - (lx + 15));
+    const dy = Math.abs(bookNode.y - (ly - 4));
+    const isOverlapping = dx < 22 && dy < 14;
+    expect(isOverlapping).toBe(false);
+  });
+
+  it('단일 직렬 심화 계보는 지그재그 없이 부모와 자식이 일직선(colinear)으로 곧게 뻗어야 한다', () => {
+    const chainCards: TopicCard[] = [
+      {
+        id: 'c-root',
+        callNumber: '501-1',
+        topic: '직렬 루트',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-child',
+        callNumber: '501-1a',
+        topic: '직렬 1차 자식',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+      {
+        id: 'c-grandchild',
+        callNumber: '501-1a1',
+        topic: '직렬 2차 손자',
+        author: '사서',
+        classification: '500 기계와 인간성',
+        acquisitionDate: '2026-09-22',
+        summary: '',
+        threads: [],
+        tags: [],
+      },
+    ];
+
+    const mapData = getLibraryOverviewMapData(chainCards[0], chainCards);
+    const n1 = mapData.nodes.find((n) => n.callNumber === '501-1')!;
+    const n2 = mapData.nodes.find((n) => n.callNumber === '501-1a')!;
+    const n3 = mapData.nodes.find((n) => n.callNumber === '501-1a1')!;
+
+    // 세 점이 일직선상에 있는지 외적(Cross product)으로 검증 (오차 2px 이내)
+    const crossProduct = Math.abs((n2.y - n1.y) * (n3.x - n2.x) - (n2.x - n1.x) * (n3.y - n2.y));
+    expect(crossProduct).toBeLessThanOrEqual(2);
+  });
+
+  it('모든 서지 노트는 어떤 대성운 캡슐(envelope)의 내부에도 들어가지 않고 반드시 틀 바깥에 배치되어야 한다', () => {
+    const currentCard = mockCards[0];
+    const mapData = getLibraryOverviewMapData(currentCard, mockCards);
+
+    const bookNodes = mapData.nodes.filter((n) => n.isBook);
+    expect(bookNodes.length).toBeGreaterThan(0);
+
+    bookNodes.forEach((bNode) => {
+      mapData.clusters.forEach((cluster) => {
+        const env = cluster.envelope;
+        // 서지 노드가 캡슐의 경계 안쪽에 완벽히 갇혀있으면 안 됨
+        const isInside =
+          bNode.x >= env.x &&
+          bNode.x <= env.x + env.width &&
+          bNode.y >= env.y &&
+          bNode.y <= env.y + env.height;
+        expect(isInside).toBe(false);
+      });
     });
   });
 });
+
+

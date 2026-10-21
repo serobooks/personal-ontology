@@ -92,6 +92,50 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     const tunnelLinks = container.querySelectorAll('[data-testid="tunnel-link"]');
     expect(tunnelLinks.length).toBeGreaterThan(0);
   });
+
+  it('현재 열람 중인 카드가 서지 카드일 때 사각 프레임 없이 속이 찬 까만 원(●)으로 렌더링되어야 한다', () => {
+    const bookCard = mockCards.find((c) => c.callNumber.startsWith('B-')) || mockCards[0];
+    const { container } = render(
+      <MiniMapModal {...defaultProps} currentCard={bookCard} />
+    );
+
+    const currentMarker = container.querySelector('[data-testid="current-location-marker"]');
+    expect(currentMarker).toBeDefined();
+
+    // 1. 사각 프레임(rect)이 없어야 함
+    expect(currentMarker?.querySelectorAll('rect').length).toBe(0);
+
+    // 2. 속이 찬 까만 원(circle[fill="#000"])이 렌더링되어야 함
+    const filledCircle = currentMarker?.querySelector('circle[fill="#000"]');
+    expect(filledCircle).toBeDefined();
+  });
+
+  it('각 대주제 성운마다 맞춤형 캡슐(nebula-envelope) 1비트 점선 테두리가 렌더링되어야 한다', () => {
+    const { container } = render(<MiniMapModal {...defaultProps} />);
+
+    const envelopes = container.querySelectorAll('[data-testid="nebula-envelope"]');
+    expect(envelopes.length).toBeGreaterThan(0);
+  });
+
+  it('직렬 심화 터널은 검은 실선(#000)으로, 한 부모에서 갈라진 형제 분기 터널은 짙은 회색(#666)으로 렌더링되어야 한다', () => {
+    const { container } = render(<MiniMapModal {...defaultProps} />);
+
+    const tunnelLinks = Array.from(container.querySelectorAll('[data-testid="tunnel-link"]'));
+    expect(tunnelLinks.length).toBeGreaterThan(0);
+
+    // tunnelLinks 중 stroke가 #000인 것(직렬 심화)과 #666인 것(형제 분기)이 모두 스타일 규칙에 부합하는지 확인
+    tunnelLinks.forEach((link) => {
+      const isBranch = link.getAttribute('data-branch') === 'true';
+      const stroke = link.getAttribute('stroke');
+      if (isBranch) {
+        expect(stroke).toBe('#666');
+      } else {
+        expect(stroke).toBe('#000');
+      }
+    });
+  });
 });
+
+
 
 

@@ -86,9 +86,8 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
               className="relative w-full h-[320px] border-2 border-black bg-white overflow-hidden shadow-[inset_1px_1px_0px_#888] cursor-crosshair [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
               style={{
                 backgroundImage:
-                  'radial-gradient(circle, #000 0.5px, transparent 0.5px), radial-gradient(circle, #000 0.5px, #fff 0.5px)',
-                backgroundSize: '12px 12px',
-                backgroundPosition: '0 0, 6px 6px',
+                  'linear-gradient(to right, #f0f0f0 1px, transparent 1px), linear-gradient(to bottom, #f0f0f0 1px, transparent 1px)',
+                backgroundSize: '32px 32px',
               }}
             >
               <svg
@@ -100,20 +99,36 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                 xmlns="http://www.w3.org/2000/svg"
                 style={{ shapeRendering: 'crispEdges' }}
               >
-                {/* 1. 대주제 성운 위치 라벨 (원형 경계선 없이 단정한 비트맵 텍스트만 표시) */}
+                {/* 1. 대주제 성운 맞춤형 캡슐 (Convex Envelope: 소속 사유 노드들을 타이트하게 감싸는 1비트 점선 테두리) */}
                 {mapData.clusters.map((cluster) => (
-                  <text
-                    key={`nebula-${cluster.majorCode}`}
-                    x={cluster.cx}
-                    y={cluster.cy - 14}
-                    fill="#aaa"
-                    fontSize="9"
-                    fontFamily="monospace"
-                    textAnchor="middle"
-                  >
-                    [{cluster.majorCode}]
-                  </text>
+                  <g key={`nebula-${cluster.majorCode}`}>
+                    {/* 맞춤형 둥근 점선 캡슐 */}
+                    <rect
+                      data-testid="nebula-envelope"
+                      x={cluster.envelope.x}
+                      y={cluster.envelope.y}
+                      width={cluster.envelope.width}
+                      height={cluster.envelope.height}
+                      rx={cluster.envelope.rx}
+                      fill="none"
+                      stroke="#bbb"
+                      strokeWidth="1"
+                      strokeDasharray="2,2"
+                    />
+                    {/* 대주제 코드 라벨 (캡슐 상단에 단정하게 각인) */}
+                    <text
+                      x={cluster.labelX ?? cluster.envelope.x + 6}
+                      y={cluster.labelY ?? cluster.envelope.y - 4}
+                      fill="#888"
+                      fontSize="9"
+                      fontFamily="monospace"
+                      textAnchor="start"
+                    >
+                      [{cluster.majorCode}]
+                    </text>
+                  </g>
                 ))}
+
 
                 {/* 2. 성간 및 연계 카드 참조선 (단정한 1비트 회색 점선) */}
                 {mapData.references?.map((ref, idx) => (
@@ -130,16 +145,17 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                   />
                 ))}
 
-                {/* 3. 직속 부모-자식 별자리 터널 (단정한 1비트 검은 실선) */}
+                {/* 3. 직속 부모-자식 별자리 터널: 직렬 심화는 짙은 검은 실선(#000), 한 부모에서 갈라진 형제 분기는 짙은 회색 실선(#666) */}
                 {mapData.tunnels.map((tunnel, idx) => (
                   <line
                     key={`tunnel-${idx}`}
                     data-testid="tunnel-link"
+                    data-branch={tunnel.isBranch ? 'true' : 'false'}
                     x1={tunnel.x1}
                     y1={tunnel.y1}
                     x2={tunnel.x2}
                     y2={tunnel.y2}
-                    stroke="#000"
+                    stroke={tunnel.isBranch ? '#666' : '#000'}
                     strokeWidth="1"
                   />
                 ))}
@@ -147,40 +163,21 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                 {/* 4. 모든 메모의 사각(사유) 및 이중 원(서지) 도트들 */}
                 {mapData.nodes.map((node) => {
                   if (node.isBook) {
-                    // B- 서지 카드: 스타일 2 이중 원(Celestial Bullseye ⊙)
+                    // B- 서지 카드: 스타일 2 이중 원(일반 ⊙ / 현재 ●)
                     if (node.isCurrent) {
                       return (
                         <g key={node.id} data-testid="current-location-marker">
-                          {/* 현재 서지: 바깥 정적 사각 타겟팅 프레임 (10x10) */}
-                          <rect
-                            x={node.x - 5}
-                            y={node.y - 5}
-                            width={10}
-                            height={10}
-                            fill="none"
-                            stroke="#000"
-                            strokeWidth="1"
-                          />
-                          {/* 내부 이중 원: 외곽 원 (지름 7px, r=3.5) */}
+                          {/* 현재 서지: 사각 프레임 없이 속이 꽉 찬 까만 원 (지름 8px, r=4) */}
                           <circle
                             cx={node.x}
                             cy={node.y}
-                            r={3.5}
-                            fill="#fff"
-                            stroke="#000"
-                            strokeWidth="1"
-                          />
-                          {/* 중심 1비트 검은 점 (2x2 픽셀) */}
-                          <rect
-                            x={node.x - 1}
-                            y={node.y - 1}
-                            width={2}
-                            height={2}
+                            r={4}
                             fill="#000"
                           />
                         </g>
                       );
                     }
+
 
                     // 일반 서지: 이중 원 도트 ⊙ (지름 7px)
                     return (
