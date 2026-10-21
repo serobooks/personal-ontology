@@ -53,12 +53,16 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('B- 서지 카드가 존재할 때 다이아몬드(polygon) 도트가 렌더링되고 하단 상태바는 단정하게 유지되어야 한다', () => {
+  it('B- 서지 카드가 존재할 때 스타일 2 이중 원(Celestial Bullseye ⊙) 마커가 렌더링되고 하단 상태바는 단정하게 유지되어야 한다', () => {
     const { container } = render(<MiniMapModal {...defaultProps} />);
 
-    // B- 서지 카드용 마커(polygon)가 렌더링되었는지 확인
+    // B- 서지 카드용 마커가 렌더링되었는지 확인
     const bookMarkers = container.querySelectorAll('[data-testid="book-marker"]');
     expect(bookMarkers.length).toBeGreaterThan(0);
+
+    // 각 서지 마커는 이중 원(외곽 원 circle)을 포함해야 함
+    const outerCircles = container.querySelectorAll('[data-testid="book-marker"] circle');
+    expect(outerCircles.length).toBeGreaterThan(0);
 
     // 하단 설명이 두 줄이 되지 않도록 범례 텍스트는 표시되지 않아야 함
     expect(screen.queryByText(/□ 사유 · ◇ 서지/)).toBeNull();
@@ -68,11 +72,16 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     expect(refLinks.length).toBeGreaterThan(0);
   });
 
-  it('교집합을 오인시키는 원형 경계선(circle) 및 인위적인 애니메이션이 완전히 배제되어야 한다', () => {
+  it('성운 간 교집합을 오인시키는 거대 원형 경계선(r > 20) 및 인위적인 애니메이션이 완전히 배제되어야 한다', () => {
     const { container } = render(<MiniMapModal {...defaultProps} />);
 
-    // 1. 벤 다이어그램 교집합 오해를 낳는 circle 태그가 전혀 없어야 함
-    expect(container.querySelectorAll('circle').length).toBe(0);
+    // 1. 벤 다이어그램 교집합 오해를 낳는 거대 원형 경계선 링(반지름 > 20)이 전혀 없어야 함
+    const circles = Array.from(container.querySelectorAll('circle'));
+    const largeCircles = circles.filter((c) => {
+      const r = Number(c.getAttribute('r') || 0);
+      return r > 20;
+    });
+    expect(largeCircles.length).toBe(0);
 
     // 2. 깜빡임, 펄스, 회전 등의 애니메이션 클래스가 없어야 함
     expect(container.querySelector('.animate-spin')).toBeNull();
@@ -84,4 +93,5 @@ describe('MiniMapModal 서고 전체도 컴포넌트 검증', () => {
     expect(tunnelLinks.length).toBeGreaterThan(0);
   });
 });
+
 

@@ -144,41 +144,68 @@ export const MiniMapModal: React.FC<MiniMapModalProps> = ({
                   />
                 ))}
 
-                {/* 4. 모든 메모의 사각(사유) 및 다이아몬드(서지) 도트들 */}
+                {/* 4. 모든 메모의 사각(사유) 및 이중 원(서지) 도트들 */}
                 {mapData.nodes.map((node) => {
                   if (node.isBook) {
-                    // B- 서지 카드: 다이아몬드(마름모) 도트
+                    // B- 서지 카드: 스타일 2 이중 원(Celestial Bullseye ⊙)
                     if (node.isCurrent) {
                       return (
                         <g key={node.id} data-testid="current-location-marker">
-                          {/* 현재 서지: 바깥 정적 마름모 테두리 (10x10) */}
-                          <polygon
-                            points={`${node.x},${node.y - 5} ${node.x + 5},${node.y} ${node.x},${node.y + 5} ${node.x - 5},${node.y}`}
+                          {/* 현재 서지: 바깥 정적 사각 타겟팅 프레임 (10x10) */}
+                          <rect
+                            x={node.x - 5}
+                            y={node.y - 5}
+                            width={10}
+                            height={10}
                             fill="none"
                             stroke="#000"
                             strokeWidth="1"
                           />
-                          {/* 현재 서지: 내부 꽉 찬 마름모 (6x6) */}
-                          <polygon
-                            points={`${node.x},${node.y - 3} ${node.x + 3},${node.y} ${node.x},${node.y + 3} ${node.x - 3},${node.y}`}
+                          {/* 내부 이중 원: 외곽 원 (지름 7px, r=3.5) */}
+                          <circle
+                            cx={node.x}
+                            cy={node.y}
+                            r={3.5}
+                            fill="#fff"
+                            stroke="#000"
+                            strokeWidth="1"
+                          />
+                          {/* 중심 1비트 검은 점 (2x2 픽셀) */}
+                          <rect
+                            x={node.x - 1}
+                            y={node.y - 1}
+                            width={2}
+                            height={2}
                             fill="#000"
                           />
                         </g>
                       );
                     }
 
-                    // 일반 서지: 빈 마름모 도트 (6x6)
+                    // 일반 서지: 이중 원 도트 ⊙ (지름 7px)
                     return (
-                      <polygon
-                        key={node.id}
-                        data-testid="book-marker"
-                        points={`${node.x},${node.y - 3} ${node.x + 3},${node.y} ${node.x},${node.y + 3} ${node.x - 3},${node.y}`}
-                        fill="#fff"
-                        stroke="#000"
-                        strokeWidth="1"
-                      />
+                      <g key={node.id} data-testid="book-marker">
+                        {/* 외곽 원: 지름 7px, r=3.5 */}
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={3.5}
+                          fill="#fff"
+                          stroke="#000"
+                          strokeWidth="1"
+                        />
+                        {/* 중심 1비트 검은 점 (2x2 픽셀) */}
+                        <rect
+                          x={node.x - 1}
+                          y={node.y - 1}
+                          width={2}
+                          height={2}
+                          fill="#000"
+                        />
+                      </g>
                     );
                   }
+
 
                   // 일반 사유 메모: 사각형 도트
                   if (node.isCurrent) {
