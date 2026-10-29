@@ -1,9 +1,33 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
+const SITE_TITLE = '사적 온톨로지 • Personal Ontology';
+const SITE_DESCRIPTION =
+  '스크롤 피드를 넘어 단 1장의 대출 카드에 몰입하는 클래식 Mac System 7 감성의 장서 단말기';
+
 export const metadata: Metadata = {
-  title: '사적 온톨로지 • Personal Ontology',
-  description: '스크롤 피드를 넘어 단 1장의 대출 카드에 몰입하는 클래식 Mac System 7 감성의 장서 단말기',
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: SITE_TITLE,
+      },
+    ],
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
