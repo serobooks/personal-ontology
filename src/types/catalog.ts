@@ -62,3 +62,14 @@ export interface CategoryScheduleItem {
   firstCardId?: string;       // 해당 분과의 첫 번째 카드 ID
   hasCards: boolean;          // 카드가 존재하는지 여부 (count > 0)
 }
+
+/**
+ * 현재 카드의 4방향(상위/하위 계층, 좌/우 이웃) 이동 대상 카드 정보
+ */
+export interface CardNavigationInfo {
+  parentCard: TopicCard | null;       // [↑] 상위 카드 (없으면 null)
+  childCard: TopicCard | null;        // [↓] 하위 카드 (없으면 null)
+  prevNeighborCard: TopicCard | null; // [←] 이전 이웃 카드
+  nextNeighborCard: TopicCard | null; // [→] 다음 이웃 카드
+}
+

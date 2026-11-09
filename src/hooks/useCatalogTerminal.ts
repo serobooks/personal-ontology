@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { TopicCard, BacklinkItem, CardThread } from '@/types/catalog';
+import { TopicCard, BacklinkItem, CardThread, CardNavigationInfo } from '@/types/catalog';
 import {
   findBacklinks,
   getRandomCardId,
-  getMajorJumpCardId,
-  getNextFamilyThread,
-  getPrevFamilyThread,
+  getCardNavigationInfo,
 } from '@/lib/catalogUtils';
 
 /**
  * 도서관 카드 단말기 인터랙션 및 키보드 단축키 관리 훅
- * - [← / →]: 현재 대주제 계열 내에서 모든 가지치기 카드의 단상들을 연속 탐색 (예: 101 -> 101-a -> 101-a1)
- * - [↑ / ↓]: 다른 3자리 대주제(101 <-> 201 <-> 301)로 건너뛰기
+ * - [← / →]: 이웃 카드 이동 (같은 부모의 형제 카드로 우선 이동, 끝에서는 다음 줄기로 이어서 이동)
+ * - [↑ / ↓]: 상하위 카드 이동 (상위 부모 카드로 복귀 / 하위 자식 카드로 심화, 갈 곳이 없으면 정지)
  * - [/]: 카드 검색(Search) 팝업 창 토글
  * - [Space]: 무작위 토픽 카드로 전환
  * - [Enter]: 대주제 색인 모달 창 토글
@@ -87,6 +85,19 @@ export function useCatalogTerminal(cards: TopicCard[]) {
   const currentBacklinks: BacklinkItem[] = useMemo(() => {
     if (!activeCard) return [];
     return findBacklinks(activeCard.id, cards);
+  }, [activeCard, cards]);
+
+  // 현재 활성화된 카드의 4방향(상위/하위/좌/우 이웃) 이동 대상 정보
+  const navigationInfo: CardNavigationInfo = useMemo(() => {
+    if (!activeCard) {
+      return {
+        parentCard: null,
+        childCard: null,
+        prevNeighborCard: null,
+        nextNeighborCard: null,
+      };
+    }
+    return getCardNavigationInfo(activeCard.id, cards);
   }, [activeCard, cards]);
 
   // 모달 제어 함수들
@@ -185,33 +196,26 @@ export function useCatalogTerminal(cards: TopicCard[]) {
     [cards, closeAllModals]
   );
 
-  // [→] 같은 대주제 계열 내에서 단상 연속 다음 이동 (101-a, 101-a1 등으로 연속 전진)
+  // [→] 다음 이웃 카드 이동 (형제 우선, 마지막 형제 이후에는 다음 줄기로 이동)
   const nextThread = useCallback(() => {
-    const { nextCardId, nextThreadIndex } = getNextFamilyThread(
-      activeCardId,
-      activeThreadIndex,
-      cards
-    );
-    setActiveCardId(nextCardId);
-    setActiveThreadIndex(nextThreadIndex);
-  }, [activeCardId, activeThreadIndex, cards]);
-
-  // [←] 같은 대주제 계열 내에서 단상 연속 이전 이동 (이전 가지치기 카드로 역진입)
-  const prevThread = useCallback(() => {
-    const { prevCardId, prevThreadIndex } = getPrevFamilyThread(
-      activeCardId,
-      activeThreadIndex,
-      cards
-    );
-    setActiveCardId(prevCardId);
-    setActiveThreadIndex(prevThreadIndex);
-  }, [activeCardId, activeThreadIndex, cards]);
-
-  // [↑ / ↓] 3자리 대주제 단위 건너뛰기
-  const nextTopic = useCallback(() => {
-    setActiveCardId((curr) => getMajorJumpCardId(curr, cards, 'next'));
+    if (!navigationInfo.nextNeighborCard) return;
+    setActiveCardId(navigationInfo.nextNeighborCard.id);
     setActiveThreadIndex(0);
-  }, [cards]);
+  }, [navigationInfo]);
+
+  // [←] 이전 이웃 카드 이동 (형제 우선, 첫 형제 이전에는 이전 줄기로 이동)
+  const prevThread = useCallback(() => {
+    if (!navigationInfo.prevNeighborCard) return;
+    setActiveCardId(navigationInfo.prevNeighborCard.id);
+    setActiveThreadIndex(0);
+  }, [navigationInfo]);
+
+  // [↓] 하위 카드(자식 노드)로 이동 (자식이 없으면 정지)
+  const nextTopic = useCallback(() => {
+    if (!navigationInfo.childCard) return;
+    setActiveCardId(navigationInfo.childCard.id);
+    setActiveThreadIndex(0);
+  }, [navigationInfo]);
 
   // [Space] 0.8초 셔플링 다이얼로그 후 무작위 카드로 전환
   const shuffleRandomCard = useCallback(() => {
@@ -233,10 +237,12 @@ export function useCatalogTerminal(cards: TopicCard[]) {
     }, 800);
   }, [cards, closeAllModals, isShuffling]);
 
+  // [↑] 상위 카드(부모 노드)로 이동 (부모가 없으면 정지)
   const prevTopic = useCallback(() => {
-    setActiveCardId((curr) => getMajorJumpCardId(curr, cards, 'prev'));
+    if (!navigationInfo.parentCard) return;
+    setActiveCardId(navigationInfo.parentCard.id);
     setActiveThreadIndex(0);
-  }, [cards]);
+  }, [navigationInfo]);
 
   // 키보드 단축키 리스너 등록
   useEffect(() => {
@@ -378,6 +384,7 @@ export function useCatalogTerminal(cards: TopicCard[]) {
     activeThreadIndex,
     activeThread,
     totalThreads,
+    navigationInfo,
     setActiveCardId: selectCard,
     setActiveThreadIndex,
     nextThread,

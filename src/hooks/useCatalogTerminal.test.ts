@@ -4,30 +4,26 @@ import { useCatalogTerminal } from './useCatalogTerminal';
 import { mockCards } from '@/data/mockCards';
 
 /**
- * 대주제 계열 내 단상 연속 순회 및 검색 모달 훅 테스트 (TDD - RED -> GREEN)
+ * 상하(부모·자식 계층) 및 좌우(형제·이웃) 이동 체계와 단축키 모달 훅 검증 (TDD)
  */
 describe('useCatalogTerminal 단말기 훅 검증', () => {
-  it('ArrowRight를 연속해서 누르면 101의 단상 3개를 거쳐 101-a의 첫 단상으로 매끄럽게 넘어가야 한다', () => {
+  it('최상위 루트(101)에서 ArrowRight를 누르면 자식(101-a)을 건너뛰고 다음 루트 이웃(201)으로 이동하며, ArrowLeft로 다시 101로 복귀해야 한다', () => {
     const { result } = renderHook(() => useCatalogTerminal(mockCards));
 
     expect(result.current.activeCard.callNumber).toBe('101');
-    expect(result.current.activeThreadIndex).toBe(0);
+    expect(result.current.navigationInfo.parentCard).toBeNull();
+    expect(result.current.navigationInfo.childCard?.callNumber).toBe('101-a');
+    expect(result.current.navigationInfo.nextNeighborCard?.callNumber).toBe('201');
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     });
-    expect(result.current.activeThreadIndex).toBe(1);
+    expect(result.current.activeCard.callNumber).toBe('201');
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     });
-    expect(result.current.activeThreadIndex).toBe(2);
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    });
-    expect(result.current.activeCard.callNumber).toBe('101-a');
-    expect(result.current.activeThreadIndex).toBe(0);
+    expect(result.current.activeCard.callNumber).toBe('101');
   });
 
   it('/ 키를 누르면 검색 모달(isSearchOpen)이 토글되어야 한다', () => {
@@ -47,15 +43,38 @@ describe('useCatalogTerminal 단말기 훅 검증', () => {
     expect(result.current.isSearchOpen).toBe(false);
   });
 
-  it('ArrowDown 키를 누를 때만 다른 대주제(201)로 건너뛰어야 한다', () => {
+  it('ArrowDown 키를 누르면 하위 카드(101 -> 101-a -> 101-a1)로 내려가고, 최하위 카드에서는 더 이상 점프하지 않고 멈춰야 한다', () => {
     const { result } = renderHook(() => useCatalogTerminal(mockCards));
 
+    expect(result.current.activeCard.callNumber).toBe('101');
+
+    // 1단계 하위 진입: 101 -> 101-a
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     });
+    expect(result.current.activeCard.callNumber).toBe('101-a');
 
-    expect(result.current.activeCard.callNumber).toBe('201');
-    expect(result.current.activeThreadIndex).toBe(0);
+    // 101-a에서 오른쪽(ArrowRight)을 누르면 자식 101-a1이 아니라 형제 101-b로 이동해야 함
+    expect(result.current.navigationInfo.nextNeighborCard?.callNumber).toBe('101-b');
+
+    // 2단계 하위 진입: 101-a -> 101-a1
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    });
+    expect(result.current.activeCard.callNumber).toBe('101-a1');
+    expect(result.current.navigationInfo.childCard).toBeNull();
+
+    // 최하위 노드(101-a1)에서 ArrowDown을 한 번 더 눌러도 다른 카드로 점프하지 않고 그대로 머물러야 함
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    });
+    expect(result.current.activeCard.callNumber).toBe('101-a1');
+
+    // ArrowUp을 누르면 다시 상위 카드인 101-a로 올라가야 함
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    });
+    expect(result.current.activeCard.callNumber).toBe('101-a');
   });
 
   it('Space 키를 누르면 0.8초(800ms) 동안 isShuffling이 true가 되고, 완료 후 새 카드로 전환되어야 한다', () => {

@@ -19,6 +19,7 @@ import {
   getCategorySchedule,
   getAncestorCallNumbers,
   resolveInheritedCategory,
+  getCardNavigationInfo,
 } from '@/lib/catalogUtils';
 import { TopicCard, CardThread, CategoryScheduleItem } from '@/types/catalog';
 
@@ -456,6 +457,132 @@ describe('도서관 장서 온톨로지 카탈로그 유틸리티 및 검색 검
 
     // 6) 601-b: 600 대분과명 '자연과 사유' 반환
     expect(resolveInheritedCategory('601-b', categoryMap)).toBe('자연과 사유');
+  });
+
+  it('getCardNavigationInfo: 상하(↑ 상위 / ↓ 하위) 계층 이동과 좌우(← / → 이웃) 형제 및 다음 줄기 이동을 정확히 산출해야 한다', () => {
+    const treeCards: TopicCard[] = [
+      {
+        id: 'c-110',
+        callNumber: '110',
+        topic: '언어철학 루트',
+        author: '사서',
+        classification: '100 언어와 번역',
+        acquisitionDate: '2026-01-01',
+        summary: '',
+        threads: [{ id: 't1', date: '2026-01-01', stampType: 'ESTABLISHED', note: '110' }],
+        tags: [],
+      },
+      {
+        id: 'c-110-1',
+        callNumber: '110-1',
+        topic: '첫 번째 가지',
+        author: '사서',
+        classification: '100 언어와 번역',
+        acquisitionDate: '2026-01-02',
+        summary: '',
+        threads: [{ id: 't2', date: '2026-01-02', stampType: 'ESTABLISHED', note: '110-1' }],
+        tags: [],
+      },
+      {
+        id: 'c-110-1a',
+        callNumber: '110-1a',
+        topic: '첫 번째 가지의 하위 심화',
+        author: '사서',
+        classification: '100 언어와 번역',
+        acquisitionDate: '2026-01-03',
+        summary: '',
+        threads: [{ id: 't3', date: '2026-01-03', stampType: 'UNFINISHED', note: '110-1a' }],
+        tags: [],
+      },
+      {
+        id: 'c-110-2',
+        callNumber: '110-2',
+        topic: '두 번째 형제 가지',
+        author: '사서',
+        classification: '100 언어와 번역',
+        acquisitionDate: '2026-01-04',
+        summary: '',
+        threads: [{ id: 't4', date: '2026-01-04', stampType: 'ESTABLISHED', note: '110-2' }],
+        tags: [],
+      },
+      {
+        id: 'c-201',
+        callNumber: '201',
+        topic: '서사 루트',
+        author: '사서',
+        classification: '200 서사와 창작',
+        acquisitionDate: '2026-01-05',
+        summary: '',
+        threads: [{ id: 't5', date: '2026-01-05', stampType: 'ESTABLISHED', note: '201' }],
+        tags: [],
+      },
+    ];
+
+    // 1) 110-1에서:
+    // - ↑ 상위: 110
+    // - ↓ 하위: 110-1a
+    // - → 다음 이웃: 자식인 110-1a를 건너뛰고 형제인 110-2로!
+    const nav110_1 = getCardNavigationInfo('c-110-1', treeCards);
+    expect(nav110_1.parentCard?.callNumber).toBe('110');
+    expect(nav110_1.childCard?.callNumber).toBe('110-1a');
+    expect(nav110_1.nextNeighborCard?.callNumber).toBe('110-2');
+
+    // 2) 최상위 루트 110에서:
+    // - ↑ 상위: null (최상위이므로 막힘)
+    // - ↓ 하위: 110-1 (첫 번째 자식)
+    // - → 다음 이웃: 하위 자식들을 건너뛰고 다음 루트인 201로!
+    const nav110 = getCardNavigationInfo('c-110', treeCards);
+    expect(nav110.parentCard).toBeNull();
+    expect(nav110.childCard?.callNumber).toBe('110-1');
+    expect(nav110.nextNeighborCard?.callNumber).toBe('201');
+
+    // 3) 최하위 노드 110-1a에서:
+    // - ↑ 상위: 110-1
+    // - ↓ 하위: null (더 이상 자식이 없으므로 억지로 점프하지 않고 막힘)
+    // - → 다음 이웃: 외동이므로 다음 줄기인 110-2로 자연스럽게 이어짐!
+    const nav110_1a = getCardNavigationInfo('c-110-1a', treeCards);
+    expect(nav110_1a.parentCard?.callNumber).toBe('110-1');
+    expect(nav110_1a.childCard).toBeNull();
+    expect(nav110_1a.nextNeighborCard?.callNumber).toBe('110-2');
+
+    // 4) 마지막 형제 110-2에서:
+    // - ← 이전 이웃: 110-1a를 건너뛰고 형제인 110-1로!
+    // - → 다음 이웃: 마지막 형제를 지나 다음 줄기인 201로 이어짐!
+    const nav110_2 = getCardNavigationInfo('c-110-2', treeCards);
+    expect(nav110_2.prevNeighborCard?.callNumber).toBe('110-1');
+    expect(nav110_2.nextNeighborCard?.callNumber).toBe('201');
+  });
+
+  it('getAncestorCallNumbers 및 getCardNavigationInfo: 다중 하이픈(CARD-1a-2b 등)이나 특수문자가 포함된 청구기호에서도 무한 루프에 빠지지 않아야 한다', () => {
+    const weirdCards: TopicCard[] = [
+      {
+        id: 'w1',
+        callNumber: 'CARD-12a-34b',
+        topic: '특수 청구기호 1',
+        author: '사서',
+        classification: '기타',
+        acquisitionDate: '2026-01-01',
+        summary: '',
+        threads: [{ id: 't1', date: '2026-01-01', stampType: 'UNFINISHED', note: '1' }],
+        tags: [],
+      },
+      {
+        id: 'w2',
+        callNumber: '101-a1-b2',
+        topic: '다중 하이픈 청구기호',
+        author: '사서',
+        classification: '100 언어와 번역',
+        acquisitionDate: '2026-01-02',
+        summary: '',
+        threads: [{ id: 't2', date: '2026-01-02', stampType: 'UNFINISHED', note: '2' }],
+        tags: [],
+      },
+    ];
+
+    expect(() => getAncestorCallNumbers('CARD-12a-34b')).not.toThrow();
+    expect(() => getAncestorCallNumbers('101-a1-b2')).not.toThrow();
+    const nav = getCardNavigationInfo('w1', weirdCards);
+    expect(nav.nextNeighborCard?.id).toBe('w2');
   });
 });
 

@@ -1,20 +1,26 @@
 'use client';
 
 import React from 'react';
-import { TopicCard, CardThread, StampType } from '@/types/catalog';
-import { resolveLinkedCardInfo, getThreadDisplayNote, resolveClassification } from '@/lib/catalogUtils';
+import { TopicCard, CardThread, StampType, CardNavigationInfo } from '@/types/catalog';
+import {
+  resolveLinkedCardInfo,
+  getThreadDisplayNote,
+  resolveClassification,
+  getCardNavigationInfo,
+} from '@/lib/catalogUtils';
 
 interface LibraryCardViewProps {
   card: TopicCard;
   activeThread: CardThread;
   activeThreadIndex: number;
   totalThreads: number;
-  onPrevThread: () => void;
-  onNextThread: () => void;
+  onPrevThread?: () => void;
+  onNextThread?: () => void;
   onSelectTopic: (topicId: string) => void;
   onOpenBacklinks: () => void;
   backlinkCount: number;
   allCards?: TopicCard[];
+  navigationInfo?: CardNavigationInfo;
   isAuthenticated?: boolean;
 }
 
@@ -48,18 +54,16 @@ const renderStamp = (thread: CardThread) => {
 export const LibraryCardView: React.FC<LibraryCardViewProps> = ({
   card,
   activeThread,
-  activeThreadIndex,
-  totalThreads,
-  onPrevThread,
-  onNextThread,
   onSelectTopic,
   onOpenBacklinks,
   backlinkCount,
   allCards,
+  navigationInfo,
   isAuthenticated = false,
 }) => {
   const isRestrictedMasked = activeThread.stampType === 'RESTRICTED' && !isAuthenticated;
   const displayNote = getThreadDisplayNote(activeThread, isAuthenticated);
+  const navInfo = navigationInfo ?? getCardNavigationInfo(card.id, allCards || [card]);
   return (
     <div className="w-full max-w-2xl bg-[#f5f7fa] border-2 border-black shadow-[4px_4px_0px_#000000] p-6 sm:p-8 relative library-card-sheet font-mono">
       {/* 1. 카드 상단 헤더: 청구기호, 서지 정보, 역링크 */}
@@ -111,27 +115,51 @@ export const LibraryCardView: React.FC<LibraryCardViewProps> = ({
 
       {/* 2. 카드 본문: 화면 중앙에 단 1장의 단상 카드 렌더링 */}
       <div className="my-5">
-        {/* 단상 카드 상단 내비게이션 바 (불필요한 가로선 제거) */}
-        <div className="flex items-center justify-end mb-2 text-xs">
-          {/* 이전/다음 전환 미니 버튼 */}
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={onPrevThread}
-              type="button"
-              title="이전 카드 (←)"
-              className="sys7-btn px-2 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
+        {/* 단상 카드 상단 내비게이션 안내 텍스트 바 (양끝 맞춤 및 좌우 대칭형 표시) */}
+        <div
+          data-testid="card-navigation-guide"
+          className="w-full flex flex-wrap items-center justify-between gap-y-1 mb-2 px-0.5 text-[11px] font-mono text-gray-600 select-none"
+        >
+          <span>
+            ← 이웃:{' '}
+            <strong
+              className={
+                navInfo.prevNeighborCard ? 'text-black font-bold' : 'text-gray-400 font-normal'
+              }
             >
-              ← 이전
-            </button>
-            <button
-              onClick={onNextThread}
-              type="button"
-              title="다음 단상 (→)"
-              className="sys7-btn px-2 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
+              {navInfo.prevNeighborCard ? navInfo.prevNeighborCard.callNumber : '없음'}
+            </strong>
+          </span>
+          <span className="text-gray-300">│</span>
+          <span>
+            ↑ 상위:{' '}
+            <strong
+              className={navInfo.parentCard ? 'text-black font-bold' : 'text-gray-400 font-normal'}
             >
-              다음 →
-            </button>
-          </div>
+              {navInfo.parentCard ? navInfo.parentCard.callNumber : '없음'}
+            </strong>
+          </span>
+          <span className="text-gray-300">│</span>
+          <span>
+            ↓ 하위:{' '}
+            <strong
+              className={navInfo.childCard ? 'text-black font-bold' : 'text-gray-400 font-normal'}
+            >
+              {navInfo.childCard ? navInfo.childCard.callNumber : '없음'}
+            </strong>
+          </span>
+          <span className="text-gray-300">│</span>
+          <span>
+            이웃:{' '}
+            <strong
+              className={
+                navInfo.nextNeighborCard ? 'text-black font-bold' : 'text-gray-400 font-normal'
+              }
+            >
+              {navInfo.nextNeighborCard ? navInfo.nextNeighborCard.callNumber : '없음'}
+            </strong>{' '}
+            →
+          </span>
         </div>
 
         {/* 단일 단상 카드 프레임 */}

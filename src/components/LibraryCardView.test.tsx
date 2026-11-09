@@ -138,4 +138,50 @@ describe('LibraryCardView 컴포넌트 - RESTRICTED 열람 제한', () => {
     // 책 제목은 본문에 여전히 큼직하게 유지되어야 함
     expect(screen.getByText('러브 머신(제임스 멀둔, 2026)')).toBeDefined();
   });
+
+  it('단상 카드 상단에 기존의 이전/다음 버튼 대신 상위·하위·이웃 카드의 이동 가능 방향 텍스트 안내가 표시되어야 한다', () => {
+    const parentCard: TopicCard = {
+      ...dummyCard,
+      id: 'c-110',
+      callNumber: '110',
+    };
+    const currentCard: TopicCard = {
+      ...dummyCard,
+      id: 'c-110-1',
+      callNumber: '110-1',
+    };
+    const childCard: TopicCard = {
+      ...dummyCard,
+      id: 'c-110-1a',
+      callNumber: '110-1a',
+    };
+    const neighborCard: TopicCard = {
+      ...dummyCard,
+      id: 'c-110-2',
+      callNumber: '110-2',
+    };
+
+    render(
+      <LibraryCardView
+        {...defaultProps}
+        card={currentCard}
+        allCards={[parentCard, currentCard, childCard, neighborCard]}
+      />
+    );
+
+    // 기존의 '← 이전', '다음 →' 버튼이 제거되었는지 확인
+    expect(screen.queryByRole('button', { name: /← 이전/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /다음 →/ })).toBeNull();
+
+    // 텍스트 안내 바에 양끝 대칭형(← 이웃 ... │ ↑ 상위 ... │ ↓ 하위 ... │ 이웃: ... →)과 양끝 맞춤 클래스가 적용되었는지 확인
+    const navGuide = screen.getByTestId('card-navigation-guide');
+    expect(navGuide.className).toContain('justify-between');
+    expect(navGuide.textContent).toContain('← 이웃:');
+    expect(navGuide.textContent).toContain('↑ 상위:');
+    expect(navGuide.textContent).toContain('110');
+    expect(navGuide.textContent).toContain('↓ 하위:');
+    expect(navGuide.textContent).toContain('110-1a');
+    expect(navGuide.textContent).toContain('이웃:');
+    expect(navGuide.textContent).toContain('110-2 →');
+  });
 });

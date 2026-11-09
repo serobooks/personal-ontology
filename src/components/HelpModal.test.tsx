@@ -13,8 +13,8 @@ describe('HelpModal 컴포넌트', () => {
     expect(screen.queryByText(/이용 지침 \(Help Guide\)/)).toBeNull();
     expect(screen.queryByText(/모든 것은 다른 모든 것과/)).toBeNull();
     expect(screen.getByText(/방향키 조작 체계/)).toBeDefined();
-    expect(screen.getByText(/같은 주제 내 이동/)).toBeDefined();
-    expect(screen.getByText(/다른 주제 전환/)).toBeDefined();
+    expect(screen.getByText(/이웃 카드/)).toBeDefined();
+    expect(screen.getByText(/상하위 카드/)).toBeDefined();
   });
 
   it('확인 버튼 클릭 시 onClose 핸들러가 호출되어야 한다', () => {

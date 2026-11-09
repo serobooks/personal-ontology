@@ -71,11 +71,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
                 <div className="text-[11px] space-y-1 font-mono">
                   <div>
                     • <span className="font-bold bg-black text-white px-1 py-0.2">[← / →]</span> :{' '}
-                    <span className="font-bold underline">같은 주제 내 이동</span> (이전 단상 / 다음 단상)
+                    <span className="font-bold underline">이웃 카드 이동</span> (같은 층위의 형제 또는 다음 줄기)
                   </div>
                   <div>
                     • <span className="font-bold bg-black text-white px-1 py-0.2">[↑ / ↓]</span> :{' '}
-                    <span className="font-bold underline">다른 주제 전환</span> (이전 토픽 / 다음 토픽)
+                    <span className="font-bold underline">상하위 카드 이동</span> (상위 카드 복귀 / 하위 카드 심화)
                   </div>
                   <div className="pt-1 border-t border-black text-[#333333] space-y-0.5">
                     <div>• <span className="font-bold text-black">[Space]</span> : 무작위 토픽 카드로 전환</div>

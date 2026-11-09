@@ -17,11 +17,13 @@ describe('BottomShortcutBar 컴포넌트', () => {
     isModalOpen: false,
   };
 
-  it('하단 커맨드 바에 변경된 단축키 안내가 올바르게 렌더링되어야 한다', () => {
+  it('하단 커맨드 바에 변경된 단축키 안내(이웃 카드, 상하위 카드 등)가 올바르게 렌더링되어야 한다', () => {
     render(<BottomShortcutBar {...defaultProps} />);
 
-    // 변경된 표기 확인: [Esc] 복귀, [/] 검색 등
+    // 변경된 표기 확인: [Esc] 복귀, 이웃 카드, 상하위 카드, [/] 검색 등
     expect(screen.getByText(/복귀/)).toBeDefined();
+    expect(screen.getByText(/이웃 카드/)).toBeDefined();
+    expect(screen.getByText(/상하위 카드/)).toBeDefined();
     expect(screen.getByText(/랜덤/)).toBeDefined();
     expect(screen.getByText(/검색/)).toBeDefined();
     expect(screen.getByText(/전체도/)).toBeDefined();

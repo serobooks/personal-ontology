@@ -63,6 +63,7 @@ export default function CatalogTerminalClient({
     activeThreadIndex,
     activeThread,
     totalThreads,
+    navigationInfo,
     setActiveCardId,
     nextThread,
     prevThread,
@@ -137,6 +138,7 @@ export default function CatalogTerminalClient({
                 onOpenBacklinks={toggleBacklinks}
                 backlinkCount={currentBacklinks.length}
                 allCards={cards}
+                navigationInfo={navigationInfo}
                 isAuthenticated={isAuthenticated}
               />
             </div>

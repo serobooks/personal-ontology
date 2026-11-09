@@ -17,8 +17,8 @@ interface BottomShortcutBarProps {
 
 /**
  * 하단 단말기 조작 단축키 안내 바
- * - [← / →]: 같은 주제 내 이동 (이전 단상 / 다음 단상)
- * - [↑ / ↓]: 다른 주제 전환 (이전 토픽 / 다음 토픽)
+ * - [← / →]: 이웃 카드 이동 (이전 이웃 / 다음 이웃)
+ * - [↑ / ↓]: 상하위 카드 이동 (상위 카드 / 하위 카드)
  * - [/]: 카드 검색
  * - [Space]: 무작위 카드
  * - [M]: 서고 던전 오토맵
@@ -50,13 +50,13 @@ export const BottomShortcutBar: React.FC<BottomShortcutBarProps> = ({
           <span className="underline">[Esc]</span> {isModalOpen ? '닫기' : '복귀'}
         </button>
 
-        {/* 같은 주제 내 단상 이동 버튼 */}
+        {/* 이웃 카드 이동 버튼 */}
         <div className="flex items-center space-x-1 bg-[#f0f2f5] px-1.5 py-0.5 border border-black">
-          <span className="text-[10px] font-bold text-gray-600">같은 주제:</span>
+          <span className="text-[10px] font-bold text-gray-600">이웃 카드:</span>
           <button
             onClick={onPrevThread}
             type="button"
-            title="이전 단상 (←)"
+            title="이전 이웃 카드 (←)"
             className="sys7-btn px-1.5 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
           >
             ←
@@ -64,20 +64,20 @@ export const BottomShortcutBar: React.FC<BottomShortcutBarProps> = ({
           <button
             onClick={onNextThread}
             type="button"
-            title="다음 단상 (→)"
+            title="다음 이웃 카드 (→)"
             className="sys7-btn px-1.5 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
           >
             →
           </button>
         </div>
 
-        {/* 다른 주제 전환 버튼 */}
+        {/* 상하위 카드 이동 버튼 */}
         <div className="flex items-center space-x-1 bg-[#f0f2f5] px-1.5 py-0.5 border border-black">
-          <span className="text-[10px] font-bold text-gray-600">주제 전환:</span>
+          <span className="text-[10px] font-bold text-gray-600">상하위 카드:</span>
           <button
             onClick={onPrevTopic}
             type="button"
-            title="이전 주제 (↑)"
+            title="상위 카드 (↑)"
             className="sys7-btn px-1.5 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
           >
             ↑
@@ -85,7 +85,7 @@ export const BottomShortcutBar: React.FC<BottomShortcutBarProps> = ({
           <button
             onClick={onNextTopic}
             type="button"
-            title="다음 주제 (↓)"
+            title="하위 카드 (↓)"
             className="sys7-btn px-1.5 py-0.5 text-[11px] font-bold hover:bg-black hover:text-white cursor-pointer"
           >
             ↓

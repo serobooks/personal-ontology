@@ -1,4 +1,4 @@
-import { TopicCard, BacklinkItem, CardThread, CategoryScheduleItem } from '@/types/catalog';
+import { TopicCard, BacklinkItem, CardThread, CategoryScheduleItem, CardNavigationInfo } from '@/types/catalog';
 
 /**
  * 카드의 필수 데이터 무결성을 검증합니다.
@@ -525,35 +525,36 @@ export function getAncestorCallNumbers(callNumber: string): string[] {
   const ancestors: string[] = [];
   let current = callNumber.trim();
 
-  // 1. 하이픈 뒤의 토큰(연속된 숫자 또는 영문자)을 끝에서부터 하나씩 제거
-  while (current.includes('-')) {
+  // 1. 하이픈 뒤의 토큰(연속된 숫자 또는 영문자)을 끝에서부터 하나씩 제거 (무한 루프 안전장치 포함)
+  let guard = 0;
+  while (current.includes('-') && guard < 20) {
+    guard += 1;
     const hyphenIdx = current.indexOf('-');
     const major = current.slice(0, hyphenIdx);
     const branch = current.slice(hyphenIdx + 1);
 
+    let nextBranch = '';
     if (/\d+$/.test(branch)) {
-      const parentBranch = branch.replace(/\d+$/, '');
-      if (!parentBranch) {
-        if (!ancestors.includes(major)) ancestors.push(major);
-        current = major;
-        break;
-      } else {
-        current = `${major}-${parentBranch}`;
-        if (!ancestors.includes(current)) ancestors.push(current);
-      }
+      nextBranch = branch.replace(/\d+$/, '');
     } else if (/[a-zA-Z]+$/.test(branch)) {
-      const parentBranch = branch.replace(/[a-zA-Z]+$/, '');
-      if (!parentBranch) {
-        if (!ancestors.includes(major)) ancestors.push(major);
-        current = major;
-        break;
-      } else {
-        current = `${major}-${parentBranch}`;
-        if (!ancestors.includes(current)) ancestors.push(current);
-      }
+      nextBranch = branch.replace(/[a-zA-Z]+$/, '');
+    } else if (/-+$/.test(branch)) {
+      nextBranch = branch.replace(/-+$/, '');
     } else {
       break;
     }
+
+    nextBranch = nextBranch.replace(/-+$/, '');
+    if (!nextBranch) {
+      if (!ancestors.includes(major)) ancestors.push(major);
+      current = major;
+      break;
+    }
+
+    const nextCall = `${major}-${nextBranch}`;
+    if (nextCall === current) break;
+    current = nextCall;
+    if (!ancestors.includes(current)) ancestors.push(current);
   }
 
   // 2. 3자리 순수 숫자인 경우 (소분과 211 -> 중분과 210 -> 대분과 200, 501 -> 500)
@@ -615,5 +616,208 @@ export function resolveInheritedCategory(
   }
   return rawClassification;
 }
+
+/**
+ * 청구기호의 가지치기(Branch) 계층만 거슬러 올라가 상위 청구기호 후보 목록을 반환합니다.
+ * - 대분과 가상 코드('100', '200', 'B')는 제외하고 실제 카드 가지치기 부모만 추출합니다.
+ * - 예:
+ *   '110-1a' -> ['110-1', '110']
+ *   '110-1' -> ['110']
+ *   '110' -> []
+ *   'B-1' -> []
+ */
+export function getBranchAncestorCallNumbers(callNumber: string): string[] {
+  if (!callNumber) return [];
+  const trimmed = callNumber.trim();
+  if (trimmed.toUpperCase().startsWith('B-') || trimmed.toUpperCase() === 'B') {
+    return [];
+  }
+
+  const ancestors: string[] = [];
+  let current = trimmed;
+  let guard = 0;
+
+  while (current.includes('-') && guard < 20) {
+    guard += 1;
+    const hyphenIdx = current.indexOf('-');
+    const major = current.slice(0, hyphenIdx).trim();
+    const branch = current.slice(hyphenIdx + 1).trim();
+
+    if (!branch) break;
+
+    let nextBranch = '';
+    if (/\d+$/.test(branch)) {
+      nextBranch = branch.replace(/\d+$/, '');
+    } else if (/[a-zA-Z]+$/.test(branch)) {
+      nextBranch = branch.replace(/[a-zA-Z]+$/, '');
+    } else if (/-+$/.test(branch)) {
+      nextBranch = branch.replace(/-+$/, '');
+    } else {
+      break;
+    }
+
+    nextBranch = nextBranch.replace(/-+$/, '');
+    if (!nextBranch) {
+      if (!ancestors.includes(major)) ancestors.push(major);
+      current = major;
+      break;
+    }
+
+    const nextCall = `${major}-${nextBranch}`;
+    if (nextCall === current) break;
+    current = nextCall;
+    if (!ancestors.includes(current)) ancestors.push(current);
+  }
+
+  return ancestors;
+}
+
+/**
+ * 현재 카드의 4방향(상위/하위 계층, 좌/우 이웃) 이동 대상 카드를 산출합니다.
+ * - [↑ 상위 카드 (parentCard)]: 현재 카드의 조상 청구기호 중 실제로 존재하는 가장 가까운 상위 카드 (없으면 null로 정지)
+ * - [↓ 하위 카드 (childCard)]: 현재 카드를 상위 카드로 삼는 직속 자식 중 첫 번째 카드 (없으면 null로 정지)
+ * - [→ 다음 이웃 (nextNeighborCard)]: 같은 부모를 공유하는 다음 형제 카드로 우선 이동하되, 마지막 형제(또는 외동)를 지나면 하위 자손을 건너뛴 다음 줄기 카드로 자연스럽게 이어짐
+ * - [← 이전 이웃 (prevNeighborCard)]: 같은 부모를 공유하는 이전 형제 카드로 우선 이동하되, 첫 번째 형제(또는 외동)를 지나면 상위 조상을 제외한 이전 줄기 카드로 자연스럽게 이어짐
+ */
+export function getCardNavigationInfo(
+  currentCardId: string,
+  cards: TopicCard[]
+): CardNavigationInfo {
+  if (!cards || cards.length === 0) {
+    return {
+      parentCard: null,
+      childCard: null,
+      prevNeighborCard: null,
+      nextNeighborCard: null,
+    };
+  }
+
+  const sortedCards = [...cards].sort((a, b) => compareCallNumbers(a.callNumber, b.callNumber));
+  const currentCard =
+    sortedCards.find(
+      (c) =>
+        c.id === currentCardId ||
+        c.callNumber.toLowerCase() === currentCardId.toLowerCase()
+    ) || sortedCards[0];
+
+  const cardByCallNumber = new Map<string, TopicCard>();
+  sortedCards.forEach((c) => {
+    cardByCallNumber.set(c.callNumber.trim().toLowerCase(), c);
+  });
+
+  // 특정 카드의 실존하는 가장 가까운 상위 카드(Effective Parent) 조회
+  const getEffectiveParent = (card: TopicCard): TopicCard | null => {
+    const ancestors = getBranchAncestorCallNumbers(card.callNumber);
+    for (const anc of ancestors) {
+      const found = cardByCallNumber.get(anc.toLowerCase());
+      if (found && found.id !== card.id) {
+        return found;
+      }
+    }
+    return null;
+  };
+
+  // 특정 카드의 직속 1단계 형식적 부모 청구기호 (루트 카드 및 B- 서지 카드는 '__ROOT__')
+  const getFormalParentKey = (card: TopicCard): string => {
+    const ancestors = getBranchAncestorCallNumbers(card.callNumber);
+    return ancestors.length > 0 ? ancestors[0].toLowerCase() : '__ROOT__';
+  };
+
+  // 1) [↑] 상위 카드
+  const parentCard = getEffectiveParent(currentCard);
+
+  // 2) [↓] 하위 카드 (현재 카드를 실존 상위 카드로 삼는 카드들 중 첫 번째)
+  const childrenCards = sortedCards.filter((c) => {
+    if (c.id === currentCard.id) return false;
+    const effParent = getEffectiveParent(c);
+    return effParent?.id === currentCard.id;
+  });
+  const childCard = childrenCards.length > 0 ? childrenCards[0] : null;
+
+  // 카드가 chỉ정된 단일 카드여서 전체 카드가 1장뿐인 경우
+  if (sortedCards.length <= 1) {
+    return {
+      parentCard,
+      childCard,
+      prevNeighborCard: null,
+      nextNeighborCard: null,
+    };
+  }
+
+  const currentFormalParentKey = getFormalParentKey(currentCard);
+  const siblings = sortedCards.filter((c) => getFormalParentKey(c) === currentFormalParentKey);
+  const siblingIdx = siblings.findIndex((c) => c.id === currentCard.id);
+
+  // 특정 카드가 targetCard의 하위 자손(Subtree)인지 판별
+  const isDescendantOf = (candidate: TopicCard, targetCard: TopicCard): boolean => {
+    if (candidate.id === targetCard.id) return false;
+    const candidateAncestors = getBranchAncestorCallNumbers(candidate.callNumber).map((a) =>
+      a.toLowerCase()
+    );
+    return candidateAncestors.includes(targetCard.callNumber.trim().toLowerCase());
+  };
+
+  // 특정 카드가 targetCard의 상위 조상(Ancestor)인지 판별
+  const isAncestorOf = (candidate: TopicCard, targetCard: TopicCard): boolean => {
+    if (candidate.id === targetCard.id) return false;
+    const targetAncestors = getBranchAncestorCallNumbers(targetCard.callNumber).map((a) =>
+      a.toLowerCase()
+    );
+    return targetAncestors.includes(candidate.callNumber.trim().toLowerCase());
+  };
+
+  const currentSortedIdx = sortedCards.findIndex((c) => c.id === currentCard.id);
+
+  // 3) [→] 다음 이웃 카드
+  let nextNeighborCard: TopicCard | null = null;
+  if (siblingIdx !== -1 && siblingIdx + 1 < siblings.length) {
+    // 같은 부모 아래 다음 형제가 있으면 그 형제로 이동 (하위 자식들을 건너뜀)
+    nextNeighborCard = siblings[siblingIdx + 1];
+  } else {
+    // 마지막 형제이거나 외동인 경우: 현재 카드의 하위 자손들을 모두 건너뛴 다음 줄기 카드로 이동
+    for (let step = 1; step < sortedCards.length; step++) {
+      const candidate = sortedCards[(currentSortedIdx + step) % sortedCards.length];
+      if (!isDescendantOf(candidate, currentCard)) {
+        nextNeighborCard = candidate;
+        break;
+      }
+    }
+    if (!nextNeighborCard) {
+      nextNeighborCard = sortedCards[(currentSortedIdx + 1) % sortedCards.length];
+    }
+  }
+
+  // 4) [←] 이전 이웃 카드
+  let prevNeighborCard: TopicCard | null = null;
+  if (siblingIdx > 0) {
+    // 같은 부모 아래 이전 형제가 있으면 그 형제로 이동 (이전 형제의 하위 자식들을 건너뜀)
+    prevNeighborCard = siblings[siblingIdx - 1];
+  } else if (currentFormalParentKey === '__ROOT__' && siblings.length > 1) {
+    // 첫 번째 최상위 루트 카드에서 왼쪽을 누르면 마지막 최상위 루트 카드로 이동
+    prevNeighborCard = siblings[siblings.length - 1];
+  } else {
+    // 첫 번째 형제이거나 외동인 가지 카드: 상위 조상(↑로 갈 곳)을 제외한 이전 줄기 카드로 이동
+    for (let step = 1; step < sortedCards.length; step++) {
+      const candidate =
+        sortedCards[(currentSortedIdx - step + sortedCards.length) % sortedCards.length];
+      if (!isAncestorOf(candidate, currentCard) && !isDescendantOf(candidate, currentCard)) {
+        prevNeighborCard = candidate;
+        break;
+      }
+    }
+    if (!prevNeighborCard) {
+      prevNeighborCard =
+        sortedCards[(currentSortedIdx - 1 + sortedCards.length) % sortedCards.length];
+    }
+  }
+
+  return {
+    parentCard,
+    childCard,
+    prevNeighborCard,
+    nextNeighborCard,
+  };
+}
+
 
 
